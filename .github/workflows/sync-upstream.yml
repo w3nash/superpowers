@@ -1,0 +1,58 @@
+name: Sync upstream release
+
+on:
+  schedule:
+    - cron: "17 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream-omp
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'w3nash/superpowers'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the maintained branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: omp
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - name: Resolve the latest stable release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=$(gh api repos/obra/superpowers/releases/latest --jq '.tag_name')
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected stable release tag: $tag" >&2
+            exit 1
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+      - name: Merge, verify, and publish
+        env:
+          UPSTREAM_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          node scripts/sync-upstream.mjs \
+            https://github.com/obra/superpowers.git "$UPSTREAM_TAG" omp -- \
+            node --test \
+              tests/omp/test-omp-extension.mjs \
+              tests/pi/test-pi-extension.mjs \
+              tests/upstream-sync/test-sync-upstream.mjs
