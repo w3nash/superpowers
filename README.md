@@ -253,10 +253,11 @@ The Pi package loads the Superpowers skills and a small extension that injects t
 
 ### Oh My Pi (OMP)
 
-Install Superpowers through OMP's plugin manager:
+Add this fork as an OMP marketplace, then install Superpowers from it:
 
 ```bash
-omp plugin install github:w3nash/superpowers#omp
+omp plugin marketplace add w3nash/superpowers
+omp plugin install superpowers@superpowers-dev
 ```
 
 Restart OMP after installation, then confirm the plugin is registered:
@@ -268,9 +269,21 @@ omp plugin list
 The native OMP extension loads the Superpowers bootstrap automatically and
 uses OMP's built-in `task` and `todo` tools.
 
-To update, rerun the install command and restart OMP. Automatic upstream
-synchronization updates the fork's `omp` branch; installed local copies
-update when you run the command.
+To update automatically, enable marketplace auto-update:
+
+```bash
+omp config set marketplace.autoUpdate auto
+```
+
+The fork's `omp` branch merges each upstream release, which bumps the catalog
+version in `.claude-plugin/marketplace.json`. At session start, OMP refreshes
+catalogs older than 24 hours and installs newer versions in the background;
+the update takes effect in the next session. Fork changes that don't bump the
+version need a manual upgrade:
+
+```bash
+omp plugin upgrade superpowers@superpowers-dev
+```
 
 For local development, link your checkout:
 
